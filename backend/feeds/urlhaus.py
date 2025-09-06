@@ -6,9 +6,11 @@ import datetime
 import json
 from urllib.parse import urlparse
 import csv
+import dotenv
 METADATA_URL = Path("data/metadata/urlhaus.txt")
 CACHE_URL = Path("data/urlhaus.csv")
 
+dotenv.load_dotenv()
     
 def refresh_local_cache():
     if Path.exists(METADATA_URL):
@@ -17,9 +19,13 @@ def refresh_local_cache():
             if metadata_urlhaus.get("next_update_at".fromisoformat(), datetime.datetime.now()) <= datetime.datetime.now(): # type: ignore
                 pass
             else:
-                return False # false means that it was never updated
+                return False # false means that it does not need an update
     request=httpx.get("https://urlhaus.abuse.ch/downloads/csv_online/")
-    with open(Path(CACHE_URL), 'w') as f:
+    CACHE_URL.parent.mkdir(parents=True, exist_ok=True)
+    CACHE_URL.touch()
+    METADATA_URL.parent.mkdir(parents=True, exist_ok=True)
+    METADATA_URL.touch()
+    with open(CACHE_URL, 'w') as f:
         f.write(request.text)
     with open(Path(METADATA_URL), 'w') as f:
         metadata_urlhaus = {"last_updated_at": datetime.datetime.now().isoformat(), 
@@ -69,7 +75,8 @@ def check_url_urlhaus(url, api_key):
                         "threat": row["threat"], 
                         "surbl_status": None,
                         "spamhaus_dbl_status": None,
-                        "confirmed_via": "csv"
+                        "confirmed_via": "cache",
+                        "error": None
                     }
 
     request=httpx.post("https://urlhaus-api.abuse.ch/v1/url/", 
@@ -81,13 +88,31 @@ def check_url_urlhaus(url, api_key):
     except httpx.HTTPStatusError:
         return
     response=request.json()
-    if response.get("query_status", "") != "ok":
-        return
-    else:
+    if response.get("query_status", "") == "no_results":
+        return {
+            "urlhaus_id": None,
+            "threat": False,
+            "surbl_status": None,
+            "spamhaus_dbl_status": None,
+            "confirmed_via": "api",
+            "error": None
+        }
+    elif response.get("query") == "ok":
         return {
             "urlhaus_id": response.get("id", ""), 
             "threat": response.get("threat", ""), 
             "surbl_status": response.get("blacklists", {}).get("surbl", ""),
             "spamhaus_dbl_status": response.get("blacklists", {}).get("spamhaus_dbl", ""),
-            "confirmed_via": "api"
+            "confirmed_via": "api",
+            "error": None
         }
+    else:
+        return {
+            "urlhaus_id": None,
+            "threat": None,
+            "surbl_status": None,
+            "spamhaus_dbl_status": None,
+            "error": response.get("query")
+        }
+
+

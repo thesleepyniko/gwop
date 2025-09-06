@@ -10,6 +10,9 @@ DATA_DIR=Path("./data")
 
 def refresh_feeds():
     # first, refreshing urlhaus
+    urlhaus.refresh_local_cache()
+    
+    pass
     
 
 if __name__ == "__main__":
