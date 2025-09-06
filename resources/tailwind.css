@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@layer base {
+
+  @keyframes text-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  a {
+    @apply text-blue-600;
+  }
+
+  a:hover {
+    @apply text-blue-700 underline;
+  }
+
+  .blinking-cursor {
+    margin-left: 0;
+    padding-left: 0;
+    padding-right: 0;
+    margin-right: 0;
+    animation: text-blink 1.5s step-start infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #page-heading::after { animation: none; opacity: 1; }
+}
