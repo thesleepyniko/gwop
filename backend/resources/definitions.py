@@ -4,6 +4,16 @@ from pydantic import BaseModel, model_validator
 
 from typing import Union, Optional, List, Dict, Any
 
+class Weights(str, Enum):
+    gsb = 1.0
+    AbuseCh = 0.9
+    SinkingYahts=0.9
+    PhishObserver=0.8
+    PhishReport=0.8
+    IpQuality=0.5
+    Walshy=0.5
+    VirusTotal=0.5
+
 # enums that we want to use for each response, just for easier returns persay
 class Verdict(str, Enum):
     invalid = "invalid"
@@ -26,6 +36,8 @@ class Via(str, Enum):
 class ThreatType(str, Enum):
     phishing = "phishing"
     malware = "malware"
+    other = "other"
+    mixed = "mixed"
     unknown = "unclassified"
 
 class UrlCheckResponse(BaseModel):
@@ -64,6 +76,7 @@ class ClientResponse(BaseModel):
     flagged_by: List[str]
     cleared_by: List[str]
     errored_by: List[str]
+    error: Optional[str]
     evidence: List[UrlCheckResponse]
 
     @model_validator(mode="after")

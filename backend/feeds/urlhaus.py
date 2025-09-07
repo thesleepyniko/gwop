@@ -4,10 +4,10 @@ import httpx
 from pathlib import Path
 import datetime
 import json
-from backend.resources.parse_url import parse_url
+from resources.parse_url import parse_url
 import csv
 import dotenv
-import backend.resources.definitions as definitions
+import resources.definitions as definitions
 METADATA_URL = Path("data/metadata/urlhaus.txt")
 CACHE_URL = Path("data/urlhaus.csv")
 
@@ -135,7 +135,7 @@ def check_url_urlhaus(url, api_key):
                             "surbl_status": None, 
                             "spamhaus_dbl_status": None, 
                             "urlhaus_id": None},
-                        error=response.get("query")
+                        error={"details": response}
         )
 
 

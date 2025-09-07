@@ -1,6 +1,7 @@
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
-def parse_url(url):
+def parse_url(url: str):
+    url.strip()
     parsed = urlparse(url)
 
     if not parsed.scheme:
@@ -21,7 +22,14 @@ def parse_url(url):
             netloc = f"{host}:{port}"
     else:
         netloc = host
-    
+
+    path = parsed.path
+    for _ in range(2):
+        new_path = unquote(path)
+        if new_path == path:
+            break
+        path = new_path
+
     # then we reconstruct the url
     url_parsed = f"{scheme}://{netloc}{parsed.path}"
 
