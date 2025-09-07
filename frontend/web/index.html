@@ -1,5 +1,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    
+    <link rel="stylesheet" href="../../resources/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+    <title>about gwop</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script type="text/javascript" src="../../resources/brython.js"></script>
+    <script type="text/javascript" src="../../resources/brython_stdlib.js"></script>
 </head>
+<body onload="brython()">
+    <div class="flex items-center justify-center h-screen ">
+        <div class="w-[40%] text-left overflow-auto no-scrollbar">
+            <h1 class="font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl">
+                gwop web<span class="blinking-cursor" aria-hidden="true" role="presentation">_</span>
+            </h1>
+            <p class="font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl">
+                scan a link by inputting below
+            </p>
+            <input id="link_input" class="shadow appearance-none border border-gray-500 rounded w-[70%] py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline h-8" id="link" type="link" placeholder="example.com">
+            <button id="submit_link" class="bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 border-gray-700 hover:border-gray-500 rounded">
+                Scan Link
+            </button>
+            <p class="font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl">
+                <a href="../.."> return home </a>
+            </p>
+        </div>
+    </div>
+
+</body>
+<script type="text/python">
+    import random
+    from browser import document, html, window, bind
+
+    API_URL=""
+
+    @bind(document["submit_link"], "click"):
+    def submit_url(ev):
+        pass
+</script>
 </html>
