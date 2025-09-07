@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from reactpy import component, html, run
+from reactpy import component, html, run, use_state
 
 from reactpy.backend.fastapi import configure, Options
 from reactpy.html import head, link, script, title, span, meta
 from reactpy_router import browser_router, route
+
+import httpx
 
 head_content = head(
         meta({"charset": "UTF-8"}),
@@ -54,7 +56,7 @@ def main():
             html.p(
                 {"class": "font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl"},
                 html.a(
-                    {"href": "#"},
+                    {"href": "/scan"},
                     "web"
                 ),
                 html.br(),
@@ -105,6 +107,71 @@ def about():
 @component
 def scan_link():
     
+    SERVER_LINK = ""
+    text, set_text = use_state("")
+    error, set_error_message = use_state("")
+    is_error, set_is_error = use_state(False)
+
+    def handle_change(event):
+        set_text(event["target"]["value"])
+    
+    def send_link_to_server(event):
+        if not text.strip():
+            set_error_message("URL cannot be empty!")
+            set_is_error(True)
+            return
+        elif not (text.startswith("http://") or text.startswith("https://")):
+            set_error_message("URL must start with http:// or https://")
+            set_is_error(True)
+            return
+        else:
+            response = httpx.post()
+
+    return html.div(
+        {"class": "flex items-center justify-center h-screen"},
+        html.div(
+            {"class": "w-[40%] text-left overflow-auto no-scrollbar"},
+            html.h1(
+                {"class": "font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl"},
+                "gwop web",
+                span(
+                    {"class": "blinking-cursor", "aria-hidden": "true", "role": "presentation"},
+                    "_"
+                )
+            ),
+            html.p(
+                {"class": "font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl"},
+                "scan a link by inputting below"
+            ),
+            html.input(
+                {"class": "shadow appearance-none border border-gray-500 rounded w-[70%] py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline h-8",
+                 "id": "link",
+                 "type": "link",
+                 "placeholder": "example.com",
+                 "on_change": handle_change}
+            ),
+            html.p(
+                {"class": "font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl" + 
+                 (" text-red-600" if is_error else "")},
+                error
+            ),
+            html.button(
+                {"class": "bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 border-gray-700 hover:border-gray-500 rounded",
+                 "id":"submit_link",
+                 "on_click": send_link_to_server
+                },
+                "scan link"
+            ),
+            html.p(
+                {"class": "font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl"},
+                html.a(
+                    {"href": "/"},
+                    "return home"
+                )
+            )
+
+        )
+    )
 
 @component
 def page_not_found():
@@ -146,6 +213,7 @@ def app_router():
     return browser_router(
         route("/", main()),
         route("/about", about()),
+        route("/scan", scan_link()),
         route("{404:any}", page_not_found()),
     )
 
