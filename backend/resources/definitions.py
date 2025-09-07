@@ -1,10 +1,10 @@
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from typing import Union, Optional, List, Dict, Any
 
-# enums that we want to use for each model
+# enums that we want to use for each response, just for easier returns persay
 class Verdict(str, Enum):
     invalid = "invalid"
     clean = "clean"
@@ -36,11 +36,44 @@ class UrlCheckResponse(BaseModel):
     threat_type: Optional[ThreatType]
     attributes: Optional[Dict[str, Any]]
     error: Optional[dict]
+    @model_validator(mode="after")
+    def enforce_consistency(self) -> "UrlCheckResponse":
+        if self.result == Result.error and self.error is None: # if there are no error details we need to make sure there are for logging
+            raise ValueError("Response with result=error must include details of error!")
+        
+        if self.result == Result.miss: # not a threat so we unset threat_type and set is_threat to false
+            self.is_threat = False
+            self.threat_type = None
+        
+        if self.is_threat is False: # if threat type was set to False or None but self.result not Result.miss, we unset threat_type
+            self.result = Result.miss
+            self.threat_type = None
+        
+        if self.is_threat and self.threat_type is None: # if there is a threat but we do not know the type, then set it to ThreatType.unknown
+            self.threat_type = ThreatType.unknown
+        
+        return self
+
 
 class ClientResponse(BaseModel):
     verdict: Verdict
     is_threat: bool
     threat_type: Optional[ThreatType]
     confirmed_via: Via
+    # the following three are to allow the front page to figure out what to display for each provider
+    flagged_by: List[str]
+    cleared_by: List[str]
+    errored_by: List[str]
     evidence: List[UrlCheckResponse]
+
+    @model_validator(mode="after")
+    def enforce_threat_consistency(self) -> "ClientResponse":
+        if self.verdict in {Verdict.malicious, Verdict.suspicious}: # if it is malicious or suspcious, mark as threat
+            self.is_threat = True
+
+        elif self.verdict in {Verdict.clean}: # otherwise we just mark it as not a threat
+            self.is_threat = False
+            self.threat_type = None
+
+        return self
     
