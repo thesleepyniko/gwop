@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from reactpy import component, html, run, use_state
+from reactpy import component, html, run, use_state, use_effect
 from reactpy.backend.fastapi import configure, Options
 from reactpy.html import head, link, script, title, span, meta
 from reactpy_router import browser_router, route
@@ -85,14 +85,15 @@ head_content = head(
 
 @component
 def main(theme, set_theme):
-
+    
     def change_theme(event):
-        print("changing event")
-        print(theme)
-        if theme == "dark":
-            set_theme("light")
-        else:
-            set_theme("dark")
+        def updater(prev):
+            new = "light" if prev == "dark" else "dark"
+            print(f"[toggle] prev={prev} → new={new}")
+            return new
+        set_theme(updater)
+
+
 
     return html.div(
         {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out" + (" bg-zinc-900" if theme == "dark" else " bg-white")},
@@ -148,11 +149,26 @@ def main(theme, set_theme):
     )
 
 @component
-def about():
+def about(theme, set_theme):
+
+
+    def change_theme(event):
+        def updater(prev):
+            new = "light" if prev == "dark" else "dark"
+            print(f"[toggle] prev={prev} → new={new}")
+            return new
+        set_theme(updater)
+
     return html.div(
-        {"class": "flex items-center justify-center h-screen"},
+        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out" + (" bg-zinc-900" if theme == "dark" else " bg-white")},
         html.div(
-            {"class": "w-[40%] text-left overflow-auto no-scrollbar"},
+            {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out" + (" text-zinc-100" if theme == "dark" else " text-black")},
+            html.button(
+                {"class": "absolute top-3 right-3 px-3 py-1 rounded bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200",
+                 "id": "theme-toggle",
+                 "on_click": change_theme},
+                 "🌙" if theme == "light" else "☀️"
+            ),
             html.h1(
                 {"class": "font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl"},
                 "about gwop",
@@ -299,16 +315,18 @@ def page_not_found():
     )
 
 @component
-def app_router():
+def App():
     theme, set_theme = use_state("light")
+
     return browser_router(
-        route("/", main(theme, set_theme)),
-        route("/about", about()),
+        route("/", main(theme, set_theme, key=theme)),
+        route("/about", about(theme, set_theme, key=theme)),
         route("/scan", scan_link()),
         route("{404:any}", page_not_found()),
     )
 
+
 app = FastAPI()
 app.mount("/resources", StaticFiles(directory="resources"), name="resources")
-configure(app, app_router, Options(head=head_content))
+configure(app, App, Options(head=head_content))
 
