@@ -7,6 +7,7 @@ from reactpy.html import head, link, script, title, span, meta
 from reactpy_router import browser_router, route
 import httpx
 from pydantic import BaseModel
+import datetime
 
 from enum import Enum
 from pydantic import BaseModel, model_validator, HttpUrl
@@ -47,6 +48,7 @@ class ThreatType(str, Enum):
     other = "other"
     mixed = "mixed"
     unknown = "unclassified"
+
 class UrlCheckResponse(BaseModel):
     source: str
     result: Result
@@ -73,6 +75,29 @@ class UrlCheckResponse(BaseModel):
         
         return self
 
+class ClientResponse(BaseModel):
+    verdict: Verdict
+    is_threat: bool
+    threat_type: Optional[ThreatType]
+    confirmed_via: Via
+    # the following three are to allow the front page to figure out what to display for each provider
+    flagged_by: List[str]
+    cleared_by: List[str]
+    errored_by: List[str]
+    error: Optional[str]
+    evidence: List[UrlCheckResponse]
+
+    @model_validator(mode="after")
+    def enforce_threat_consistency(self) -> "ClientResponse":
+        if self.verdict in {Verdict.malicious, Verdict.suspicious}: # if it is malicious or suspcious, mark as threat
+            self.is_threat = True
+
+        elif self.verdict in {Verdict.clean}: # otherwise we just mark it as not a threat
+            self.is_threat = False
+            self.threat_type = None
+
+        return self
+
 head_content = head(
         meta({"charset": "UTF-8"}),
         link({"rel": "stylesheet", "href": "/resources/main.css"}),
@@ -84,27 +109,12 @@ head_content = head(
     )
 
 @component
-def main(theme, set_theme):
-    
-    def change_theme(event):
-        def updater(prev):
-            new = "light" if prev == "dark" else "dark"
-            print(f"[toggle] prev={prev} → new={new}")
-            return new
-        set_theme(updater)
-
-
+def main():
 
     return html.div(
-        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out" + (" bg-zinc-900" if theme == "dark" else " bg-white")},
+        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
-            {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out" + (" text-zinc-100" if theme == "dark" else " text-black")},
-            html.button(
-                {"class": "absolute top-3 right-3 px-3 py-1 rounded bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200",
-                 "id": "theme-toggle",
-                 "on_click": change_theme},
-                 "🌙" if theme == "light" else "☀️"
-            ),
+            {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
                 {"class": "font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl"},
                 "gwop (great wall of phish)",
@@ -149,26 +159,11 @@ def main(theme, set_theme):
     )
 
 @component
-def about(theme, set_theme):
-
-
-    def change_theme(event):
-        def updater(prev):
-            new = "light" if prev == "dark" else "dark"
-            print(f"[toggle] prev={prev} → new={new}")
-            return new
-        set_theme(updater)
-
+def about():
     return html.div(
-        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out" + (" bg-zinc-900" if theme == "dark" else " bg-white")},
+        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
-            {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out" + (" text-zinc-100" if theme == "dark" else " text-black")},
-            html.button(
-                {"class": "absolute top-3 right-3 px-3 py-1 rounded bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200",
-                 "id": "theme-toggle",
-                 "on_click": change_theme},
-                 "🌙" if theme == "light" else "☀️"
-            ),
+            {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
                 {"class": "font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl"},
                 "about gwop",
@@ -199,9 +194,112 @@ def about(theme, set_theme):
         )
     )
 
-def create_result_overview():
-    pass
+def create_evidence_list(resp: ClientResponse):
+    items=[]
+    for i in resp.evidence:
+        items.append(create_individual_tag(i))
+    return html.div({"class": "rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-white"}, *items)
+
+def create_result_overview(result: ClientResponse, scanned_at):
+    threat_type_labels = {
+        ThreatType.phishing: "phishing",
+        ThreatType.malware: "malware",
+        ThreatType.other: "other threat",
+        ThreatType.mixed: "mixed/multiple",
+        ThreatType.unknown: "unclassified",
+    }
+    verdict_map = {
+        Verdict.invalid: "invalid",
+        Verdict.clean: "clean",
+        Verdict.suspicious: "suspicious",
+        Verdict.malicious: "malicious",
+        Verdict.error: "error",
+    }
+
+    if result.threat_type:
+        label = threat_type_labels.get(result.threat_type, ThreatType.unknown)
+    else:
+        label = "unclassified"
     
+    if result.verdict:
+        verdict = verdict_map.get(result.verdict, Verdict.error)
+    else:
+        verdict = verdict_map.get(Verdict.error)
+    class_name = "font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl"
+    return html.div(
+        {"class": "rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-zinc-100 mt-6 mb-4"},
+        html.p(
+            {"class": "font['Inter', font-sans] text-[clamp(.8rem,1.5vw,2rem)] text-1xl"},
+            f"verdict: {verdict}"
+        ),
+        html.p(
+            {"class": class_name},
+            f"threat type: {label}"
+        ),
+        html.p(
+            {"class": class_name},
+            f"scanned at: {scanned_at}"
+        ),
+        html.p(
+            {"class": class_name},
+            f"{len(result.flagged_by)}/{len(result.cleared_by) + len(result.flagged_by) + len(result.errored_by)} flagged"
+        ),
+        html.p(
+            {"class": class_name},
+            f"encountered {len(result.errored_by)} errors while scanning"
+        )       
+    )
+
+def create_individual_tag(result: UrlCheckResponse):
+    via_map = {
+        Via.cache: "local cache",
+        Via.api:   "api",
+        Via.multi: "combined",
+        Via.none:  "n/a",
+    }
+    via_label = via_map.get(result.via, str(result.via))
+
+    error_span=span(
+        {"class": "px-2 py-1 text-xs rounded bg-orange-100 text-orange-700"},
+        "Error"
+    )
+    clean_span=span(
+        {"class": "px-2 py-1 text-xs rounded bg-green-100 text-green-700"},
+        "Clean"
+    )
+    flag_span=span(
+        {"class": "px-2 py-1 text-xs rounded bg-red-100 text-red-700"},
+        "Flagged"
+    )
+    if result.result == Result.error:
+        badge = error_span
+    elif result.is_threat:
+        badge = flag_span
+    else:
+        badge = clean_span
+
+    return html.details(
+        {"class": "rounded-xl border border-gray-400 p-4 shadow-md bg-zinc-700"},
+        html.summary(
+            {"class": "cursor-pointer font-bold text-lg flex items-center gap-2"},
+            html.span(result.source),
+            badge,
+        ),
+        html.div(
+            {"class": "mt-2 space-y-1 text-sm"},
+            html.p(
+                "flagged: " + ("yes" if badge == flag_span else "no")
+            ),
+            html.p(
+                f"confirmed via: {via_label}"
+            ),
+            html.p(
+                f"error: {result.error}" if result.error and result.error.get("details", {}).get("query_status") != "ok" else ""
+            )
+        )
+    )
+
+
 
 @component
 def scan_link():
@@ -210,6 +308,8 @@ def scan_link():
     text, set_text = use_state("")
     error, set_error_message = use_state("")
     is_error, set_is_error = use_state(False)
+    result, set_result = use_state(None)
+    scan_time, set_scan_time = use_state("")
 
     def handle_change(event):
         set_text(event["target"]["value"])
@@ -230,13 +330,19 @@ def scan_link():
             if response.status_code != 200:
                 set_is_error(True)
                 set_error_message(response.text)
-            set_is_error(True)
-            set_error_message(response.text)
+                return
+            data=response.json()
+            # print(data)
+            parsed = ClientResponse.model_validate(data)
+            set_result(parsed) #type:ignore
+            set_scan_time(datetime.datetime.now(tz=datetime.timezone.utc).isoformat()) 
+
+            
 
     return html.div(
-        {"class": "flex items-center justify-center h-screen"},
+        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
-            {"class": "w-[40%] text-left overflow-auto no-scrollbar"},
+            {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
                 {"class": "font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl"},
                 "gwop web",
@@ -250,7 +356,7 @@ def scan_link():
                 "scan a link by inputting below"
             ),
             html.input(
-                {"class": "shadow appearance-none border border-gray-500 rounded w-[70%] py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline h-8",
+                {"class": "placeholder-zinc-400 text-zinc-100 shadow appearance-none border border-gray-500 rounded w-[70%] py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline h-8",
                  "id": "link",
                  "type": "link",
                  "placeholder": "example.com",
@@ -268,6 +374,9 @@ def scan_link():
                 },
                 "scan link"
             ),
+            result and create_result_overview(result, scan_time),
+            result and create_evidence_list(result),
+
             html.p(
                 {"class": "font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl"},
                 html.a(
@@ -281,10 +390,10 @@ def scan_link():
 
 @component
 def page_not_found():
-    return html.div(
-        {"class": "flex items-center justify-center h-screen"},
+   return html.div(
+        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
-            {"class": "w-[40%] text-left overflow-auto no-scrollbar"},
+            {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
                 {"class": "font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl"},
                 "404",
@@ -316,11 +425,9 @@ def page_not_found():
 
 @component
 def App():
-    theme, set_theme = use_state("light")
-
     return browser_router(
-        route("/", main(theme, set_theme, key=theme)),
-        route("/about", about(theme, set_theme, key=theme)),
+        route("/", main()),
+        route("/about", about()),
         route("/scan", scan_link()),
         route("{404:any}", page_not_found()),
     )

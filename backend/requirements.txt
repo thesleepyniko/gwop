@@ -1,3 +1,4 @@
 httpx
 fastapi[standard]
 dotenv
+redis

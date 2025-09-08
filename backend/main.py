@@ -6,12 +6,13 @@ import os
 import asyncio # we need this to run our periodic scanning
 from urllib.parse import urlparse
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Cookie
 from contextlib import asynccontextmanager, suppress
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from typing import List, Union
 from dotenv import load_dotenv
+from fastapi import Depends, Cookie
 
 BASE_DIR = Path(__file__).resolve().parent  
 load_dotenv(BASE_DIR / ".env") 
@@ -168,6 +169,7 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
     urlhaus_resp = check_url_urlhaus(parse_result, os.environ["URLHAUS_API_KEY"])
     if urlhaus_resp:
         results.append(urlhaus_resp)
+        print(urlhaus_resp)
     
     if simple_check:
         return simple_construct_verdict(results)

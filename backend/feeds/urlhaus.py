@@ -108,7 +108,7 @@ def check_url_urlhaus(url, api_key):
                                 "urlhaus_id": None},
                     error=None
         ) # it was clean so we tell them that
-    elif response.get("query") == "ok":
+    elif response.get("query_status") == "ok":
         refresh_local_cache()
         return definitions.UrlCheckResponse(
                     result=definitions.Result.hit,
