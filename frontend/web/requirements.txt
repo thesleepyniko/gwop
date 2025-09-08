@@ -1,3 +1,4 @@
 reactpy[fastapi]
 reactpy-router
 httpx
+pydantic

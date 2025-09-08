@@ -92,4 +92,3 @@ class ClientResponse(BaseModel):
             self.threat_type = None
 
         return self
-    

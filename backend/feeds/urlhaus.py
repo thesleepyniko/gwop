@@ -53,14 +53,12 @@ def refresh_local_cache():
 def check_url_urlhaus(url, api_key):
     if not (Path.exists(CACHE_URL) or not Path.exists(METADATA_URL)): # if neither of these (or just one of these) don't exist, update these
         refresh_local_cache() 
-
-    url_parsed = parse_url(url) # parse the url into a usable form
     
     with open(CACHE_URL, "r") as f:
         non_comment_lines = (line for line in f if not line.startswith('#')) # get rid of any commented lines
         reader = csv.DictReader(non_comment_lines, fieldnames=URLHAUS_HEADERS) # define the headers and feed lines into a csv reader
         for row in reader:
-            if row["url"] == url_parsed:
+            if row["url"] == url:
                 return definitions.UrlCheckResponse(
                     result=definitions.Result.hit,
                     is_threat=True,
@@ -74,7 +72,7 @@ def check_url_urlhaus(url, api_key):
 
     request=httpx.post("https://urlhaus-api.abuse.ch/v1/url/", 
                        headers={"Auth-Key": api_key}, 
-                       data={"url": url_parsed}
+                       data={"url": url}
     )
     try:
         request.raise_for_status()

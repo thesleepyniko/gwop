@@ -1,5 +1,6 @@
 from feeds.phishdirectory import check_url_phishdir
 from feeds.urlhaus import check_url_urlhaus, refresh_local_cache
+from resources.parse_url import parse_url
 import resources.definitions as definitions
 import os
 import asyncio # we need this to run our periodic scanning
@@ -140,25 +141,31 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> d
         
         
 
-@app.get("/check-url")
-def check_url(url: str) -> definitions.ClientResponse:
+@app.post("/check-url")
+def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
     results=[]
     simple_check=False
-    parse_result = urlparse(url)
-    if not parse_result.scheme and len(url.replace(".", "")) == len(url):
-        raise HTTPException(status_code=400, detail="Invalid URL: must use HTTP/HTTPS with valid host")
-    elif not parse_result.scheme and len(url.replace(".", "")) != len(url):
-        url = "http://" + url
-        parse_result = urlparse(url)
-    if parse_result.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=400, detail="Invalid URL: must use HTTP/HTTPS with valid host")
-    phishdir_resp=check_url_phishdir(url, None)
+    parse_result = parse_url(str(url.link))
+    if not parse_result:
+        return definitions.ClientResponse(
+            verdict=definitions.Verdict.error,
+            is_threat=False,
+            threat_type=definitions.ThreatType.unknown,
+            confirmed_via=definitions.Via.none,
+            flagged_by=[],
+            cleared_by=[],
+            errored_by=[],
+            error="Unhandled Exception while parsing response: No host found?",
+            evidence=[]
+        )
+    phishdir_resp=check_url_phishdir(parse_result, None)
     if phishdir_resp:
         results.append(phishdir_resp)
     else:
         simple_check = True
     refresh_local_cache()
-    urlhaus_resp = check_url_urlhaus(url, os.environ["URLHAUS_API_KEY"])
+    print(parse_result)
+    urlhaus_resp = check_url_urlhaus(parse_result, os.environ["URLHAUS_API_KEY"])
     if urlhaus_resp:
         results.append(urlhaus_resp)
     

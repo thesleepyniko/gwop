@@ -13,22 +13,67 @@
     <script type="text/javascript" src="resources/brython_stdlib.js"></script>
 </head>
 <body>
-    <div class="flex items-center justify-center h-screen ">
+    <div class="flex min-h-screen items-center justify-center bg-zinc-900">
+        
         <div class="w-[40%] text-left overflow-auto no-scrollbar">
-            <h1 class="font-['JetBrains_Mono',monospace] text-[clamp(1rem,2vw,2rem)] text-3xl">
-                gwop (great wall of phish)<span class="blinking-cursor" aria-hidden="true" role="presentation">_</span>
-            </h1>
-            <p class="font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl">
-                gwop is a frontend that aggregates multiple threat intelligence APIs to check for phishing and malicious sites. free to use and <a href="https://github.com/thesleepyniko/gwop">open source</a> on GitHub. learn a little more about what gwop does <a href="frontend/web/about.html">here</a>
-            </p>
-            <hr class="my-8 border-t border-gray-300" aria-hidden="true">
-            <h1 class="font['Inter', font-sans] text-[clamp(1rem,2vw,2rem)] text-3xl">
-                frontends:
-            </h1>
-            <p class="font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl">
-                <a href="#">web</a><br>
-                <a href="#">cli</a><br>
-            </p>
+            <div class="rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-zinc-100">
+                <button
+                    class="absolute top-3 right-3 px-3 py-1 rounded bg-zinc-200 text-zinc-800
+                            dark:bg-zinc-700 dark:text-zinc-200"
+                    id="theme-toggle"
+                    >
+                    🌙
+                    </button>
+                <p class="font['Inter', font-sans] text-[clamp(1rem,2vw,2rem)] text-1xl">
+                    verdict: malicious
+                </p>
+                <p class="font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl">
+                    threat type: phishing
+                </p>
+                <p class="font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl">
+                    scanned at: 8:48 UTC
+                </p>
+                <p class="font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl">
+                    link scanned: example.com
+                </p>
+                <p class="font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl">
+                    x/x vendors flagged
+                </p>
+                <p class="font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl">
+                    encounted x errors while scanning
+                </p>
+            </div>
+            <div class="rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-white">
+                <details class="rounded-xl border border-gray-400 p-4 shadow-md bg-zinc-700">
+                    <summary class="cursor-pointer font-bold text-lg">
+                        URLhaus <span class="px-2 py-1 text-xs rounded bg-orange-100 text-orange-700">Error</span>
+                    </summary>
+                    <div class="mt-2 space-y-1 text-sm">
+                        <p>flagged: error</p>
+                        <p>confirmed via: local cache</p>
+                        <p>error: invalid_url</p>
+                    </div>
+                </details>
+                <details class="rounded-xl border border-gray-400 p-4 shadow-md bg-zinc-700">
+                    <summary class="cursor-pointer font-bold text-lg">
+                        Google Safe Browsing <span class="px-2 py-1 text-xs rounded bg-red-100 text-red-700">Flagged</span>
+                    </summary>
+                    <div class="mt-2 space-y-1 text-sm">
+                        <p>flagged: yes</p>
+                        <p>confirmed via: phish.directory api</p>
+                    </div>
+                </details>
+                <details class="rounded-xl border border-gray-400 p-4 shadow-md bg-zinc-700">
+                    <summary class="cursor-pointer font-bold text-lg">
+                        VirusTotal <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-700">Clean</span>
+                    </summary>
+                    <div class="mt-2 space-y-1 text-sm">
+                        <p>flagged: no</p>
+                        <p>confirmed via: phish.directory api</p>
+                    </div>
+                </details>
+
+            </div>
         </div>
     </div>
 
