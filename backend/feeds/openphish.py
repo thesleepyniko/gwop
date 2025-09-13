@@ -28,7 +28,34 @@ def refresh_openphish(): # just get the txt file
     return True # it has been updated, so return true just in case, more for logging than anything
 
 def check_url_openphish(url: str, opset: set):
-    if url in opset:
-        return True
-    else:
-        return False
+    try:
+        if url in opset:
+            return definitions.UrlCheckResponse(
+                        result=definitions.Result.hit,
+                        is_threat=True,
+                        via=definitions.Via.cache,
+                        source="openphish", 
+                        threat_type=definitions.ThreatType.phishing, #its in the name openphish
+                        attributes={"urlhaus_id": None, "surbl_status": None, "spamhaus_dbl_status": None},
+                        error=None)
+
+        else:
+            return definitions.UrlCheckResponse(
+                        result=definitions.Result.miss,
+                        is_threat=False,
+                        via=definitions.Via.cache,
+                        source="openphish", 
+                        threat_type=None,
+                        attributes=None,
+                        error=None
+                    )
+    except Exception as e:
+        return definitions.UrlCheckResponse(
+                        result=definitions.Result.error,
+                        is_threat=False,
+                        via=definitions.Via.cache,
+                        source="openphish", 
+                        threat_type=None,
+                        attributes=None,
+                        error={"details": e}
+                    )

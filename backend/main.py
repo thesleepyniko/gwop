@@ -1,6 +1,7 @@
 from feeds.phishdirectory import check_url_phishdir
 from feeds.urlhaus import check_url_urlhaus, refresh_urlhaus_cache
 from feeds.openphish import check_url_openphish, refresh_openphish
+from feeds.certpl import check_url_certpl, refresh_certpl
 from resources.parse_url import parse_url
 import resources.definitions as definitions
 import os
@@ -27,6 +28,7 @@ async def refresh_feeds():
         # first, refreshing urlhaus
         refresh_urlhaus_cache()
         new_set = refresh_openphish()
+        refresh_certpl()
         openphish_set = new_set
         await asyncio.sleep(300)
 
@@ -166,6 +168,8 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
             error="Unhandled Exception while parsing response: No host found?",
             evidence=[]
         )
+    
+    #scanning phishdir
     phishdir_resp=check_url_phishdir(parse_result, None)
     if phishdir_resp:
         results.append(phishdir_resp)
@@ -177,11 +181,21 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
         results.append(urlhaus_resp)
         print(urlhaus_resp)
     
+    # scanning openphish blocklist
     openphish_response = check_url_openphish(parse_result, openphish_set) #type: ignore
-    if simple_check:
-        if openphish_response:
-            results.append(openphish_response)
-            print(openphish_response)
+    if simple_check and openphish_response:
+        results.append(openphish_response)
+        print(openphish_response)
+
+    # scanning certpl blocklist
+    certpl_parse = urlparse(str(url.link)).hostname
+    if certpl_parse:
+        certpl_response = check_url_certpl(certpl_parse)
+    else:
+        certpl_response = None
+    if simple_check and certpl_response:
+        results.append(certpl_response)
+        
     if simple_check:
         return simple_construct_verdict(results)
     

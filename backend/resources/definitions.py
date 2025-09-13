@@ -31,6 +31,7 @@ class Via(str, Enum):
     cache = "cache"
     api = "api"
     multi = "multi"
+    heuristic = "heuristic"
     none = "none"
 
 class ThreatType(str, Enum):
