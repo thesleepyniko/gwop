@@ -21,10 +21,10 @@ def parse_url(url: str):
         # no host found -> reject or raise error
         return None
 
-    if not parsed.path:
-        path = "/"
-    else:
-        path = parsed.path
+    # if not parsed.path:
+    #     path = "/"
+    # else:
+    #     path = parsed.path
     port = parsed.port
 
     # if there is a port we either strip it because it's default or add it onto the host
@@ -37,7 +37,7 @@ def parse_url(url: str):
         netloc = host
 
     # then we reconstruct the url
-    url_parsed = f"{scheme}://{netloc}{path}"
+    url_parsed = f"{scheme}://{netloc}{parsed.path}"
 
     # finally we'll add the query and fragment back on
     if parsed.query:

@@ -304,7 +304,7 @@ def create_individual_tag(result: UrlCheckResponse):
 @component
 def scan_link():
     
-    SERVER_LINK = "http://127.0.0.1:5500"
+    SERVER_LINK = "http://127.0.0.1:8000"
     text, set_text = use_state("")
     error, set_error_message = use_state("")
     is_error, set_is_error = use_state(False)
@@ -324,12 +324,25 @@ def scan_link():
             set_is_error(True)
             return
         else:
-            response = httpx.post(
-                f"{SERVER_LINK}/check-url",
-                json={"link": text.strip()})
-            if response.status_code != 200:
+            try:
+                response = httpx.post(
+                    f"{SERVER_LINK}/check-url",
+                    json={"link": text.strip()})
+                if response.status_code != 200:
+                    set_is_error(True)
+                    set_error_message(response.text)
+                    return
+            except httpx.ConnectError as e:
                 set_is_error(True)
-                set_error_message(response.text)
+                set_error_message("server refused connection, try again in a few minutes")
+                return
+            except httpx.ConnectTimeout as e:
+                set_is_error(True)
+                set_error_message("timed out trying to connect, try again in a few minutes")
+                return
+            except Exception as e:
+                set_is_error(True)
+                set_error_message(e)
                 return
             data=response.json()
             # print(data)

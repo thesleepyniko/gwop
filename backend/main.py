@@ -1,5 +1,6 @@
 from feeds.phishdirectory import check_url_phishdir
-from feeds.urlhaus import check_url_urlhaus, refresh_local_cache
+from feeds.urlhaus import check_url_urlhaus, refresh_urlhaus_cache
+from feeds.openphish import check_url_openphish, refresh_openphish
 from resources.parse_url import parse_url
 import resources.definitions as definitions
 import os
@@ -15,16 +16,18 @@ from dotenv import load_dotenv
 from fastapi import Depends, Cookie
 
 BASE_DIR = Path(__file__).resolve().parent  
-load_dotenv(BASE_DIR / ".env") 
-
-app = FastAPI()
-
 DATA_DIR=Path("./data")
+
+load_dotenv(BASE_DIR / ".env") 
+openphish_set = set()
 
 async def refresh_feeds():
     while True:
+        global openphish_set
         # first, refreshing urlhaus
-        refresh_local_cache()
+        refresh_urlhaus_cache()
+        new_set = refresh_openphish()
+        openphish_set = new_set
         await asyncio.sleep(300)
 
 @asynccontextmanager
@@ -37,6 +40,7 @@ async def lifespan(app: FastAPI):
         with suppress(asyncio.CancelledError):
             await task
 
+app = FastAPI(lifespan=lifespan)
 
 def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> definitions.ClientResponse: 
     # simple verdict construction for when phish.directory is down
@@ -96,10 +100,12 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> d
                 amount_malware+=1
             else:
                 amount_other+=1
-        if len(flagged_by_temp) >= (len(cleared_by_temp) +  + len(errored_by_temp)):
-            majority_flag=True
+        if len(flagged_by_temp) >= (len(cleared_by_temp) + len(errored_by_temp)):
+            malicious_flag=True
+            suspicious_flag=False
         elif len(flagged_by_temp) >= len(cleared_by_temp):
-            malicious_flag=True # we want to ensure that if consensus is not reached due to errors, we call it suspicious
+            malicious_flag=False
+            suspicious_flag=True # we want to ensure that if consensus is not reached due to errors, we call it suspicious
         elif len(cleared_by_temp) >= len(flagged_by_temp):
             malicious_flag = False
             suspicious_flag = False    
@@ -144,6 +150,7 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> d
 
 @app.post("/check-url")
 def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
+    global openphish_set
     results=[]
     simple_check=False
     parse_result = parse_url(str(url.link))
@@ -164,13 +171,17 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
         results.append(phishdir_resp)
     else:
         simple_check = True
-    refresh_local_cache()
     print(parse_result)
     urlhaus_resp = check_url_urlhaus(parse_result, os.environ["URLHAUS_API_KEY"])
     if urlhaus_resp:
         results.append(urlhaus_resp)
         print(urlhaus_resp)
     
+    openphish_response = check_url_openphish(parse_result, openphish_set) #type: ignore
+    if simple_check:
+        if openphish_response:
+            results.append(openphish_response)
+            print(openphish_response)
     if simple_check:
         return simple_construct_verdict(results)
     

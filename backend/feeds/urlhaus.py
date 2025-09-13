@@ -8,7 +8,7 @@ from resources.parse_url import parse_url
 import csv
 import dotenv
 import resources.definitions as definitions
-METADATA_URL = Path("data/metadata/urlhaus.txt")
+METADATA_URL = Path("data/metadata/urlhaus.json")
 CACHE_URL = Path("data/urlhaus.csv")
 
 dotenv.load_dotenv()
@@ -18,7 +18,7 @@ URLHAUS_HEADERS = [
     "threat", "tags", "urlhaus_link", "reporter"
 ]
 
-def refresh_local_cache():
+def refresh_urlhaus_cache():
     if Path.exists(METADATA_URL):
         try:
             with open(METADATA_URL, "r") as f:
@@ -52,7 +52,7 @@ def refresh_local_cache():
 
 def check_url_urlhaus(url, api_key):
     if not (Path.exists(CACHE_URL) or not Path.exists(METADATA_URL)): # if neither of these (or just one of these) don't exist, update these
-        refresh_local_cache() 
+        refresh_urlhaus_cache() 
     
     with open(CACHE_URL, "r") as f:
         non_comment_lines = (line for line in f if not line.startswith('#')) # get rid of any commented lines
@@ -68,7 +68,7 @@ def check_url_urlhaus(url, api_key):
                     attributes={"urlhaus_id": None, "surbl_status": None, "spamhaus_dbl_status": None},
                     error=None
                  ) # if we find it here it is good, return immediately
-        refresh_local_cache()
+        refresh_urlhaus_cache()
 
     request=httpx.post("https://urlhaus-api.abuse.ch/v1/url/", 
                        headers={"Auth-Key": api_key}, 
@@ -109,7 +109,7 @@ def check_url_urlhaus(url, api_key):
                     error=None
         ) # it was clean so we tell them that
     elif response.get("query_status") == "ok":
-        refresh_local_cache()
+        refresh_urlhaus_cache()
         return definitions.UrlCheckResponse(
                     result=definitions.Result.hit,
                     is_threat=True,
