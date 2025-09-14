@@ -74,6 +74,7 @@ class UrlCheckResponse(BaseModel):
 class ClientResponse(BaseModel):
     verdict: Verdict
     is_threat: bool
+    heuristics_is_threat: bool
     threat_type: Optional[ThreatType]
     confirmed_via: Via
     # the following three are to allow the front page to figure out what to display for each provider
@@ -81,6 +82,7 @@ class ClientResponse(BaseModel):
     cleared_by: List[str]
     errored_by: List[str]
     error: Optional[str]
+    heuristics: Dict[str, Union[int, UrlCheckResponse]]
     evidence: List[UrlCheckResponse]
 
     @model_validator(mode="after")

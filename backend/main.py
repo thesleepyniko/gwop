@@ -2,6 +2,7 @@ from feeds.phishdirectory import check_url_phishdir
 from feeds.urlhaus import check_url_urlhaus, refresh_urlhaus_cache
 from feeds.openphish import check_url_openphish, refresh_openphish
 from feeds.certpl import check_url_certpl, refresh_certpl
+from feeds.heuristics import check_heuristic
 from resources.parse_url import parse_url
 import resources.definitions as definitions
 import os
@@ -44,7 +45,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> definitions.ClientResponse: 
+def simple_construct_verdict(responses: List[definitions.UrlCheckResponse], heuristics) -> definitions.ClientResponse: 
     # simple verdict construction for when phish.directory is down
     cleared_by_temp=[]
     flagged_by_temp=[]
@@ -64,6 +65,7 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> d
             cleared_by=[],
             errored_by=[],
             error="Need at least one response",
+            heuristics=[], #type: ignore
             evidence=[]
         )
     elif len(responses) == 1:
@@ -79,12 +81,14 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> d
                     errored_by_temp.append(response.source)
         return definitions.ClientResponse(
             verdict=definitions.Verdict.malicious if responses[0].result == definitions.Result.hit else definitions.Verdict.clean,
+            heuristics_is_threat=True if heuristics.get("score", 0) >= 4 else False,
             is_threat=True if responses[0].result == definitions.Result.hit else False,
             threat_type=responses[0].threat_type,
             confirmed_via=responses[0].via,
             flagged_by=flagged_by_temp,
             cleared_by=cleared_by_temp,
             errored_by=errored_by_temp,
+            heuristics=heuristics,
             error=None,
             evidence=responses
         )
@@ -127,11 +131,13 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> d
         return definitions.ClientResponse(
             verdict=ret_verdict,
             threat_type=threat_type_ret,
+            heuristics_is_threat=True if heuristics.get("score", 0) >= 4 else False,
             is_threat=True if ret_verdict in [definitions.Verdict.malicious, definitions.Verdict.suspicious] else False,
             confirmed_via=definitions.Via.multi,
             flagged_by=flagged_by_temp,
             cleared_by=cleared_by_temp,
             errored_by=errored_by_temp,
+            heuristics=heuristics,
             error=None,
             evidence=responses
         )
@@ -139,11 +145,13 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse]) -> d
         return definitions.ClientResponse(
             verdict=definitions.Verdict.error,
             is_threat=False,
+            heuristics_is_threat=False,
             threat_type=definitions.ThreatType.unknown,
             confirmed_via=definitions.Via.none,
             flagged_by=[],
             cleared_by=[],
             errored_by=[],
+            heuristics=heuristics,
             error="Unhandled Exception while parsing response: Amount of responses negative?",
             evidence=[]
         )
@@ -166,6 +174,7 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
             cleared_by=[],
             errored_by=[],
             error="Unhandled Exception while parsing response: No host found?",
+            heuristics=[], # type: ignore
             evidence=[]
         )
     
@@ -195,9 +204,10 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
         certpl_response = None
     if simple_check and certpl_response:
         results.append(certpl_response)
-        
+    
+    heuristics = check_heuristic(str(url.link))
     if simple_check:
-        return simple_construct_verdict(results)
+        return simple_construct_verdict(results, heuristics)
     
     else:
         raise HTTPException(status_code=501, detail="Complex check not implemented yet")
