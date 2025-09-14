@@ -11,6 +11,9 @@ from pydantic import BaseModel
 import datetime
 from definitions import ClientResponse, ThreatType, Via, Verdict, UrlCheckResponse, Result
 import asyncio
+import json
+import yaml
+import base64
 
 head_content = head(
         meta({"charset": "UTF-8"}),
@@ -324,6 +327,8 @@ def scan_link():
     is_error, set_is_error = use_state(False)
     result, set_result = use_state(None)
     scan_time, set_scan_time = use_state("")
+    yaml_link, set_yaml_link = use_state("")
+    json_link, set_json_link = use_state("")
 
     def handle_change(event):
         set_text(event["target"]["value"])
@@ -358,6 +363,14 @@ def scan_link():
                 parsed = ClientResponse.model_validate(data)
                 set_result(parsed)  # type: ignore
                 set_scan_time(datetime.datetime.now(tz=datetime.timezone.utc).isoformat())
+                json_str = json.dumps(data, indent=2)
+                yaml_str = yaml.dump(data)
+                json_b64 = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
+                yaml_b64 = base64.b64encode(yaml_str.encode("utf-8")).decode("utf-8")
+                json_href = f"data:application/json;base64,{json_b64}"
+                yaml_href = f"data:text/yaml;base64,{yaml_b64}"
+                set_json_link(json_href)
+                set_yaml_link(yaml_href)
                 set_is_error(False)
                 set_error_message("")
             except httpx.ConnectError:
@@ -409,6 +422,24 @@ def scan_link():
                  "on_click": send_link_to_server
                 },
                 "scan link"
+            ),
+            yaml_link and html.button(
+                {"class": "bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 border-gray-700 hover:border-gray-500 rounded",
+                },
+                html.a(
+                    {"href": yaml_link,
+                     "download": f"gwop{datetime.date.today().isoformat()}.yaml"},
+                    "Download YAML"
+                )
+            ),
+            json_link and html.button(
+                {"class": "bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-4 border-gray-700 hover:border-gray-500 rounded",
+                },
+                html.a(
+                    {"href": json_link,
+                     "download": f"gwop{datetime.date.today().isoformat()}.json"},
+                    "Download JSON"
+                )
             ),
             result and html.div(
                 {"class": "grid grid-cols-1 gap-6 mt-6"},
