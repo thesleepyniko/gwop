@@ -83,7 +83,7 @@ async def run_gwop(url: str, fmt: str, output):
                     click.echo(f"threat type: {label}", file=output)
                 click.echo(f"Scanned at: {scan_time}", file=output)
                 click.echo(f"{len(result.flagged_by)} out of {len(result.cleared_by) + len(result.errored_by)} services flagged", file=output)
-                click.echo(f"Our heuristics s                click.echo(yaml.dump(result.model_dump(), sort_keys=False), file=output)cored this a {result.heuristics.get("score", 0)}/{"6" if not result.heuristics.get("cidr", None) else "4"}", file=output)
+                click.echo(f"Our heuristics scored this a {result.heuristics.get("score", 0)}/{"6" if not result.heuristics.get("cidr", None) else "4"}", file=output)
                 click.echo(f"{len(result.errored_by)} errors while scanning", file=output)
                 click.echo(file=output)
                 click.echo("details:", file=output)

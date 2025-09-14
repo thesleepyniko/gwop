@@ -34,9 +34,9 @@ async def refresh_feeds():
         global openphish_set
         # first, refreshing urlhaus
         refresh_urlhaus_cache()
-        new_set = refresh_openphish()
-        refresh_certpl()
-        openphish_set = new_set
+        # new_set = refresh_openphish()
+        # # refresh_certpl()
+        # openphish_set = new_set
         refresh_threatfox_cache()
         await asyncio.sleep(300)
 
@@ -51,7 +51,11 @@ async def lifespan(app: FastAPI):
             await task
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler) # type: ignore
 
@@ -209,10 +213,10 @@ def check_url(request: Request, url: definitions.UrlCheckRequest) -> definitions
             print(surbl_resp)
     # removed below due to extremely high inaccuracy
     # scanning openphish blocklist
-    openphish_response = check_url_openphish(parse_result, openphish_set) #type: ignore
-    if openphish_response:
-        results.append(openphish_response)
-        print(openphish_response)
+    # openphish_response = check_url_openphish(parse_result, openphish_set) #type: ignore
+    # if openphish_response:
+    #     results.append(openphish_response)
+    #     print(openphish_response)
     
     threatfox_response = check_url_threatfox(parse_result, str(url.link), os.environ["ABUSECH_API_KEY"])
     if threatfox_response:
