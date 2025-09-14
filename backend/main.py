@@ -4,6 +4,7 @@ from feeds.openphish import check_url_openphish, refresh_openphish
 from feeds.certpl import check_url_certpl, refresh_certpl
 from feeds.otxalienvault import check_url_otx
 from feeds.heuristics import check_heuristic
+from feeds.surbl import check_domain_surbl
 from resources.parse_url import parse_url
 from resources.ipcheck import ip_or_not
 import resources.definitions as definitions
@@ -192,14 +193,18 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
         results.append(urlhaus_resp)
         print(urlhaus_resp)
     
+    surbl_resp = check_domain_surbl(urlparse(str(url.link)).hostname)
+    if surbl_resp:
+        results.append(surbl_resp)
+        print(surbl_resp)
     # removed below due to extremely high inaccuracy
-    # # scanning openphish blocklist
-    # openphish_response = check_url_openphish(parse_result, openphish_set) #type: ignore
-    # if simple_check and openphish_response:
-    #     results.append(openphish_response)
-    #     print(openphish_response)
+    # scanning openphish blocklist
+    openphish_response = check_url_openphish(parse_result, openphish_set) #type: ignore
+    if simple_check and openphish_response:
+        results.append(openphish_response)
+        print(openphish_response)
 
-    # # scanning certpl blocklist
+    # scanning certpl blocklist
     # certpl_parse = urlparse(str(url.link)).hostname
     # if certpl_parse:
     #     certpl_response = check_url_certpl(certpl_parse)
@@ -211,6 +216,7 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
     # if otx_resp:
     #     print(otx_resp)
     #     results.append(otx_resp)
+
     heuristics = check_heuristic(str(urlparse(str(url.link)).hostname or str(url.link)), ip_or_not(urlparse(str(url.link)).hostname or str(url.link)))
     print(heuristics)
     if simple_check:

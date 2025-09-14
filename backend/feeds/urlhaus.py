@@ -66,7 +66,7 @@ def check_url_urlhaus(url, api_key):
                     source="urlhaus", 
                     threat_type=definitions.ThreatType.malware, # urlhaus is for malware only so,
                     attributes={"urlhaus_id": None, "surbl_status": None, "spamhaus_dbl_status": None},
-                    confidence=definitions.Confidence.high
+                    confidence=definitions.Confidence.high,
                     error=None
                  ) # if we find it here it is good, return immediately
         refresh_urlhaus_cache()
@@ -93,6 +93,7 @@ def check_url_urlhaus(url, api_key):
                     source="urlhaus", 
                     threat_type=None,
                     attributes=None,
+                    confidence=definitions.Confidence.high,
                     error={"details": "no_results (empty_response)"}
         ) # this indicates that something went wrong with the request so we raise error
     
@@ -107,6 +108,7 @@ def check_url_urlhaus(url, api_key):
                     attributes={"surbl_status": None, 
                                 "spamhaus_dbl_status": None, 
                                 "urlhaus_id": None},
+                    confidence=definitions.Confidence.high,
                     error=None
         ) # it was clean so we tell them that
     elif response.get("query_status") == "ok":
@@ -121,6 +123,7 @@ def check_url_urlhaus(url, api_key):
                         "surbl_status": response.get("blacklists", {}).get("surbl", None), 
                         "spamhaus_dbl_status": response.get("blacklists", {}).get("spamhaus_dbl", None), 
                         "urlhaus_id": response.get("id", "")},
+                    confidence=definitions.Confidence.high,
                     error=None
         ) # flagged by api, we should also refresh our local cache just in case
     else:
@@ -134,6 +137,7 @@ def check_url_urlhaus(url, api_key):
                             "surbl_status": None, 
                             "spamhaus_dbl_status": None, 
                             "urlhaus_id": None},
+                        confidence=definitions.Confidence.notapplicable,
                         error={"details": response}
         )
 

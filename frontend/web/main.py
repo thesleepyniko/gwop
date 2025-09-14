@@ -9,6 +9,7 @@ import httpx
 from pydantic import BaseModel
 import datetime
 from definitions import ClientResponse, ThreatType, Via, Verdict, UrlCheckResponse, Result
+import asyncio
 
 head_content = head(
         meta({"charset": "UTF-8"}),
@@ -24,7 +25,7 @@ head_content = head(
 def main():
 
     return html.div(
-        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
+        {"class": "flex items-center justify-center min-h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
             {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
@@ -73,7 +74,7 @@ def main():
 @component
 def about():
     return html.div(
-        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
+        {"class": "flex items-center justify-center min-h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
             {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
@@ -111,11 +112,13 @@ def create_evidence_list(resp: ClientResponse):
     for i in resp.evidence:
         items.append(create_individual_tag(i))
     items.append(create_heuristics_tag(resp))
-    return html.div(
-        {"class": "rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-white"}, 
-        
-        *items)
+    if len(items) % 2 == 1:
+        items[-1] = html.div(
+            {"class": "md:col-span-2"},
+            items[-1]
+        )
 
+    return items
 def create_result_overview(result: ClientResponse, scanned_at):
     threat_type_labels = {
         ThreatType.phishing: "phishing",
@@ -193,15 +196,15 @@ def create_heuristics_tag(result: ClientResponse):
     heuristics = result.heuristics
 
     error_span=span(
-        {"class": "px-2 py-1 text-xs rounded bg-orange-100 text-orange-700"},
+        {"class": "px-3 py-1 text-xs rounded bg-orange-100 text-orange-700"},
         "Error"
     )
     clean_span=span(
-        {"class": "px-2 py-1 text-xs rounded bg-green-100 text-green-700"},
+        {"class": "px-3 py-1 text-xs rounded bg-green-100 text-green-700"},
         "Clean"
     )
     flag_span=span(
-        {"class": "px-2 py-1 text-xs rounded bg-red-100 text-red-700"},
+        {"class": "px-3 py-1 text-xs rounded bg-red-100 text-red-700"},
         "Flagged"
     )
     if result.error:
@@ -314,49 +317,47 @@ def scan_link():
     def handle_change(event):
         set_text(event["target"]["value"])
     
+    
     def send_link_to_server(event):
-        set_is_error(False)
-        set_error_message("")
-        if not text.strip():
-            set_error_message("URL cannot be empty!")
-            set_is_error(True)
-            return
-        elif not (text.startswith("http://") or text.startswith("https://")):
-            set_error_message("URL must start with http:// or https://!")
-            set_is_error(True)
-            return
-        else:
+        # show loading state first
+        set_is_error(True)
+        set_error_message("scanning, please wait...")
+
+        async def do_request():
             try:
-                response = httpx.post(
+                response = await httpx.AsyncClient().post(
                     f"{SERVER_LINK}/check-url",
                     json={"link": text.strip()},
-                    timeout=20.0)
+                    timeout=20.0
+                )
                 if response.status_code != 200:
                     set_is_error(True)
                     set_error_message(response.text)
                     return
-            except httpx.ConnectError as e:
+
+                data = response.json()
+                parsed = ClientResponse.model_validate(data)
+                set_result(parsed)  # type: ignore
+                set_scan_time(datetime.datetime.now(tz=datetime.timezone.utc).isoformat())
+                set_is_error(False)
+                set_error_message("")
+            except httpx.ConnectError:
                 set_is_error(True)
                 set_error_message("server refused connection, try again in a few minutes")
-                return
-            except httpx.ConnectTimeout as e:
+            except httpx.ConnectTimeout:
                 set_is_error(True)
                 set_error_message("timed out trying to connect, try again in a few minutes")
-                return
             except Exception as e:
                 set_is_error(True)
-                set_error_message(e)
-                return
-            data=response.json()
-            # print(data)
-            parsed = ClientResponse.model_validate(data)
-            set_result(parsed) #type:ignore
-            set_scan_time(datetime.datetime.now(tz=datetime.timezone.utc).isoformat()) 
+                set_error_message(str(e))
+
+        # schedule async work without blocking the event loop
+        asyncio.create_task(do_request())
 
             
 
     return html.div(
-        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
+        {"class": "flex items-center justify-center min-h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
             {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
@@ -390,9 +391,20 @@ def scan_link():
                 },
                 "scan link"
             ),
-            result and create_result_overview(result, scan_time),
-            result and create_evidence_list(result),
+            result and html.div(
+                {"class": "grid grid-cols-1 gap-6 mt-6"},
+                create_result_overview(result, scan_time),
+                html.div(
+                    {"class": "grid grid-cols-1 md:grid-cols-2 gap-4"},
+                    *create_evidence_list(result) 
+                ),
+            ),
 
+
+            html.p(
+                {"class": "font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl"},
+                "note that not all providers will flag a malicious link. only one needs to flag to be potentially malicious."
+            ),
             html.p(
                 {"class": "font['Inter', font-sans] text-[clamp(1rem,1.3vw,1.6rem)] text-1xl"},
                 html.a(
@@ -407,7 +419,7 @@ def scan_link():
 @component
 def page_not_found():
    return html.div(
-        {"class": "flex items-center justify-center h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
+        {"class": "flex items-center justify-center min-h-screen transition-colors duration-500 ease-in-out bg-zinc-900"},
         html.div(
             {"class": "w-[40%] text-left overflow-auto no-scrollbar transition-colors duration-500 ease-in-out text-zinc-100"},
             html.h1(
