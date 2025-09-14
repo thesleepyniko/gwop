@@ -190,7 +190,7 @@ def check_url_threatfox(parsed_url, raw_url, api_key):
                         error=None
             )) # flagged by api, we should also refresh our local cache just in case
         else:
-            decisions_list.append(definitions.UrlCheckResponse(
+            return definitions.UrlCheckResponse(
                             result=definitions.Result.error,
                             is_threat=False,
                             via=definitions.Via.api,
@@ -202,7 +202,7 @@ def check_url_threatfox(parsed_url, raw_url, api_key):
                                 "threat_type": None},
                             confidence=definitions.Confidence.notapplicable,
                             error={"details": response}
-            ))
+            )
     hit = next((d for d in decisions_list if d.result == definitions.Result.hit and d.is_threat), None)
     if hit:
         return hit

@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from typing import List, Union
 from dotenv import load_dotenv
+import os, psutil
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -174,7 +175,7 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse], heur
 
 @app.post("/check-url")
 @limiter.limit("15/minute")
-@limiter.limit("500/day")
+@limiter.limit("250/day")
 def check_url(request: Request, url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
     global openphish_set
     results=[]
@@ -243,4 +244,10 @@ def check_url(request: Request, url: definitions.UrlCheckRequest) -> definitions
     
     else:
         raise HTTPException(status_code=501, detail="Complex check not implemented yet")
-    
+
+@app.middleware("http")
+async def log_memory(request: Request, call_next):
+    response = await call_next(request)
+    proc = psutil.Process(os.getpid())
+    print(f"[{request.url.path}] RSS: {proc.memory_info().rss / (1024*1024):.2f} MB")
+    return response
