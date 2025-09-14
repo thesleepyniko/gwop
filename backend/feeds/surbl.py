@@ -11,7 +11,6 @@ import resources.definitions as definitions
 from resources.cache import Cache
 import dns.resolver
 import dns
-import redis
 
 cache = Cache()
 

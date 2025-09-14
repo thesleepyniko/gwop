@@ -5,4 +5,4 @@ tldextract
 numpy
 python-dateutil
 dnspython
-redis
+slowapi

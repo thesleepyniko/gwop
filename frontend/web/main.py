@@ -5,6 +5,7 @@ from reactpy import component, html, run, use_state, use_effect
 from reactpy.backend.fastapi import configure, Options
 from reactpy.html import head, link, script, title, span, meta
 from reactpy_router import browser_router, route
+from urllib.parse import urlparse
 import httpx
 from pydantic import BaseModel
 import datetime
@@ -92,7 +93,10 @@ def about():
                     {"href": "https://github.com/phishdirectory/api"},
                     "phish.directory"
                 ),
-                " as it's main api. for availability, gwop will also attempt to contact upstream providers that phish.directory uses in the event it is down, such as URLHaus. finally, gwop uses some of it's own heuristics for maliciousness."
+                """ as it's main api. for availability, gwop will also attempt to contact upstream
+                providers that phish.directory uses in the event it is down, such as URLHaus. finally,  
+                gwop uses some of it's own heuristics for maliciousness.
+                if one provider flags, gwop flags as malicious (as a false positive is better than a false negative.)"""
             ),
             html.hr(
                 {"class": "my-8 border-t border-gray-300", "aria-hidden": "true"}
@@ -107,6 +111,13 @@ def about():
         )
     )
 
+def is_valid_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+        return parsed.scheme in ["http", "https"] and bool(parsed.netloc)
+    except Exception:
+        return False
+
 def create_evidence_list(resp: ClientResponse):
     items=[]
     for i in resp.evidence:
@@ -114,7 +125,7 @@ def create_evidence_list(resp: ClientResponse):
     items.append(create_heuristics_tag(resp))
     if len(items) % 2 == 1:
         items[-1] = html.div(
-            {"class": "md:col-span-2"},
+            {"class": "col-span-full"},
             items[-1]
         )
 
@@ -324,6 +335,14 @@ def scan_link():
         set_error_message("scanning, please wait...")
 
         async def do_request():
+            if not text.strip():
+                set_error_message("url cannot be empty")
+                set_is_error(True)
+                return
+            elif not is_valid_url(text.strip()):
+                set_error_message("start your url with http or https! (if it is an ip, prepend http://)")
+                set_is_error(True)
+                return
             try:
                 response = await httpx.AsyncClient().post(
                     f"{SERVER_LINK}/check-url",

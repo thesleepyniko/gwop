@@ -8,7 +8,7 @@ from resources.parse_url import parse_url
 import csv
 import dotenv
 import resources.definitions as definitions
-import gzip
+import zipfile
 import io
 METADATA_URL = Path("data/metadata/threatfox.json")
 CACHE_URL = Path("data/threatfox.csv")
@@ -50,10 +50,11 @@ def refresh_threatfox_cache():
     METADATA_URL.parent.mkdir(parents=True, exist_ok=True)
     METADATA_URL.touch()
 
-    with gzip.GzipFile(fileobj=io.BytesIO(request.content)) as f:
-        decompressed = f.read()
-        with open(CACHE_URL, 'wb') as output_f:
-            output_f.write(decompressed)
+    with zipfile.ZipFile(io.BytesIO(request.content), "r") as f:
+        csv_file_name = f.namelist()[0]
+        with f.open(csv_file_name) as csv_file:
+            with open(CACHE_URL, 'wb') as output_f:
+                output_f.write(csv_file.read())
         
     # with open(CACHE_URL, 'w') as f:
     #     f.write(request.text) # write the csv file
@@ -98,13 +99,13 @@ def check_url_threatfox(parsed_url, raw_url, api_key):
 
     raw_request=httpx.post("https://threatfox-api.abuse.ch/api/v1/", 
                        headers={"Auth-Key": api_key}, 
-                       data={
+                       json={
                            "query": "search_ioc",
                            "search_term": raw_url}
     )
     parse_request=httpx.post("https://threatfox-api.abuse.ch/api/v1/", 
                        headers={"Auth-Key": api_key}, 
-                       data={
+                       json={
                            "query": "search_ioc",
                            "search_term": parsed_url}
     )
@@ -143,7 +144,7 @@ def check_url_threatfox(parsed_url, raw_url, api_key):
             )) # this indicates that something went wrong with the request so we raise error
         
         response=request.json()
-        if response.get("query_status", "") == "no_results":
+        if response.get("query_status", "") == "no_result":
             decisions_list.append(definitions.UrlCheckResponse(
                         result=definitions.Result.miss,
                         is_threat=False,
@@ -202,5 +203,26 @@ def check_url_threatfox(parsed_url, raw_url, api_key):
                             confidence=definitions.Confidence.notapplicable,
                             error={"details": response}
             ))
+    hit = next((d for d in decisions_list if d.result == definitions.Result.hit and d.is_threat), None)
+    if hit:
+        return hit
 
+    error = next((d for d in decisions_list if d.result == definitions.Result.error), None)
+    if error:
+        return error
+
+    miss = next((d for d in decisions_list if d.result == definitions.Result.miss), None)
+    if miss:
+        return miss
+
+    return definitions.UrlCheckResponse(
+        result=definitions.Result.error,
+        is_threat=False,
+        via=definitions.Via.none,
+        source="threatfox",
+        threat_type=None,
+        attributes=None,
+        confidence=definitions.Confidence.notapplicable,
+        error={"details": "unexpected empty result list"}
+    )
 

@@ -5,6 +5,7 @@ from feeds.certpl import check_url_certpl, refresh_certpl
 from feeds.otxalienvault import check_url_otx
 from feeds.heuristics import check_heuristic
 from feeds.surbl import check_domain_surbl
+from feeds.threatfox import refresh_threatfox_cache, check_url_threatfox
 from resources.parse_url import parse_url
 from resources.ipcheck import ip_or_not
 import resources.definitions as definitions
@@ -12,13 +13,15 @@ import os
 import asyncio # we need this to run our periodic scanning
 from urllib.parse import urlparse
 from pathlib import Path
-from fastapi import FastAPI, Depends, Cookie
+from fastapi import FastAPI, Depends, Cookie, Request
 from contextlib import asynccontextmanager, suppress
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from typing import List, Union
 from dotenv import load_dotenv
-from fastapi import Depends, Cookie
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 BASE_DIR = Path(__file__).resolve().parent  
 DATA_DIR=Path("./data")
@@ -34,6 +37,7 @@ async def refresh_feeds():
         new_set = refresh_openphish()
         refresh_certpl()
         openphish_set = new_set
+        refresh_threatfox_cache()
         await asyncio.sleep(300)
 
 @asynccontextmanager
@@ -46,7 +50,10 @@ async def lifespan(app: FastAPI):
         with suppress(asyncio.CancelledError):
             await task
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler) # type: ignore
 
 def simple_construct_verdict(responses: List[definitions.UrlCheckResponse], heuristics) -> definitions.ClientResponse: 
     # simple verdict construction for when phish.directory is down
@@ -162,7 +169,9 @@ def simple_construct_verdict(responses: List[definitions.UrlCheckResponse], heur
         
 
 @app.post("/check-url")
-def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
+@limiter.limit("15/minute")
+@limiter.limit("500/day")
+def check_url(request: Request, url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
     global openphish_set
     results=[]
     simple_check=False
@@ -193,16 +202,22 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
         results.append(urlhaus_resp)
         print(urlhaus_resp)
     
-    surbl_resp = check_domain_surbl(urlparse(str(url.link)).hostname)
-    if surbl_resp:
-        results.append(surbl_resp)
-        print(surbl_resp)
+    if not ip_or_not(urlparse(str(url.link)).hostname or str(url.link)):
+        surbl_resp = check_domain_surbl(urlparse(str(url.link)).hostname)
+        if surbl_resp:
+            results.append(surbl_resp)
+            print(surbl_resp)
     # removed below due to extremely high inaccuracy
     # scanning openphish blocklist
     openphish_response = check_url_openphish(parse_result, openphish_set) #type: ignore
-    if simple_check and openphish_response:
+    if openphish_response:
         results.append(openphish_response)
         print(openphish_response)
+    
+    threatfox_response = check_url_threatfox(parse_result, str(url.link), os.environ["ABUSECH_API_KEY"])
+    if threatfox_response:
+        results.append(threatfox_response)
+        print(threatfox_response)
 
     # scanning certpl blocklist
     # certpl_parse = urlparse(str(url.link)).hostname

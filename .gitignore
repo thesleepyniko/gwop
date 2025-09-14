@@ -2,7 +2,8 @@ node_modules
 .env
 venv
 data
-__pycache__
+__pycache__/
 __pycache__/*
 *.pyc
 *.cpython
+dist/
