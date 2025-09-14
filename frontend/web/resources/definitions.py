@@ -31,6 +31,7 @@ class Via(str, Enum):
     cache = "cache"
     api = "api"
     multi = "multi"
+    heuristic = "heuristic"
     none = "none"
 
 class ThreatType(str, Enum):
@@ -39,6 +40,11 @@ class ThreatType(str, Enum):
     other = "other"
     mixed = "mixed"
     unknown = "unclassified"
+
+class Confidence(str, Enum):
+    high = "high"
+    medium = "medium"
+    low = "low"
 
 class UrlCheckRequest(BaseModel):
     link: HttpUrl
@@ -50,6 +56,7 @@ class UrlCheckResponse(BaseModel):
     is_threat: bool
     threat_type: Optional[ThreatType]
     attributes: Optional[Dict[str, Any]]
+    confidence: Confidence
     error: Optional[dict]
     @model_validator(mode="after")
     def enforce_consistency(self) -> "UrlCheckResponse":
@@ -73,6 +80,7 @@ class UrlCheckResponse(BaseModel):
 class ClientResponse(BaseModel):
     verdict: Verdict
     is_threat: bool
+    heuristics_is_threat: bool
     threat_type: Optional[ThreatType]
     confirmed_via: Via
     # the following three are to allow the front page to figure out what to display for each provider
@@ -80,6 +88,7 @@ class ClientResponse(BaseModel):
     cleared_by: List[str]
     errored_by: List[str]
     error: Optional[str]
+    heuristics: Dict[str, Optional[Union[int, UrlCheckResponse]]]
     evidence: List[UrlCheckResponse]
 
     @model_validator(mode="after")
@@ -92,3 +101,4 @@ class ClientResponse(BaseModel):
             self.threat_type = None
 
         return self
+    

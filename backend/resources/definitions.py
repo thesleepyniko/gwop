@@ -41,6 +41,12 @@ class ThreatType(str, Enum):
     mixed = "mixed"
     unknown = "unclassified"
 
+class Confidence(str, Enum):
+    high = "high"
+    medium = "medium"
+    low = "low"
+    notapplicable = "N/A"
+
 class UrlCheckRequest(BaseModel):
     link: HttpUrl
 
@@ -51,6 +57,7 @@ class UrlCheckResponse(BaseModel):
     is_threat: bool
     threat_type: Optional[ThreatType]
     attributes: Optional[Dict[str, Any]]
+    confidence: Confidence
     error: Optional[dict]
     @model_validator(mode="after")
     def enforce_consistency(self) -> "UrlCheckResponse":

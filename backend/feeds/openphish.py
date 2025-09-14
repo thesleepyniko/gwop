@@ -38,6 +38,7 @@ def check_url_openphish(url: str, opset: set):
                         source="openphish", 
                         threat_type=definitions.ThreatType.phishing, #its in the name openphish
                         attributes={"urlhaus_id": None, "surbl_status": None, "spamhaus_dbl_status": None},
+                        confidence=definitions.Confidence.high,
                         error=None)
 
         else:
@@ -48,6 +49,7 @@ def check_url_openphish(url: str, opset: set):
                         source="openphish", 
                         threat_type=None,
                         attributes=None,
+                        confidence=definitions.Confidence.high,
                         error=None
                     )
     except Exception as e:
@@ -58,5 +60,6 @@ def check_url_openphish(url: str, opset: set):
                         source="openphish", 
                         threat_type=None,
                         attributes=None,
+                        confidence=definitions.Confidence.notapplicable,
                         error={"details": str(e)}
                     )

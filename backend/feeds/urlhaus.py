@@ -51,7 +51,7 @@ def refresh_urlhaus_cache():
     return True # it has been updated, so return true just in case, more for logging than anything
 
 def check_url_urlhaus(url, api_key):
-    if not (Path.exists(CACHE_URL) or not Path.exists(METADATA_URL)): # if neither of these (or just one of these) don't exist, update these
+    if not (CACHE_URL.exists() and METADATA_URL.exists()): # if neither of these (or just one of these) don't exist, update these
         refresh_urlhaus_cache() 
     
     with open(CACHE_URL, "r") as f:
@@ -66,6 +66,7 @@ def check_url_urlhaus(url, api_key):
                     source="urlhaus", 
                     threat_type=definitions.ThreatType.malware, # urlhaus is for malware only so,
                     attributes={"urlhaus_id": None, "surbl_status": None, "spamhaus_dbl_status": None},
+                    confidence=definitions.Confidence.high
                     error=None
                  ) # if we find it here it is good, return immediately
         refresh_urlhaus_cache()

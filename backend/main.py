@@ -187,7 +187,7 @@ def check_url(url: definitions.UrlCheckRequest) -> definitions.ClientResponse:
     else:
         simple_check = True
     print(parse_result)
-    urlhaus_resp = check_url_urlhaus(parse_result, os.environ["URLHAUS_API_KEY"])
+    urlhaus_resp = check_url_urlhaus(parse_result, os.environ["ABUSECH_API_KEY"])
     if urlhaus_resp:
         results.append(urlhaus_resp)
         print(urlhaus_resp)

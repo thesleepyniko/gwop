@@ -29,6 +29,7 @@ def check_heuristic(url: str, is_ip = False):
                         source="heuristics", 
                         threat_type=None,
                         attributes=None,
+                        confidence=definitions.Confidence.notapplicable,
                         error={"details": "Invalid URL"}
                     )
                 detections["score"] = 0
@@ -62,7 +63,8 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net",
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": "no registration date"}
+                                    confidence=definitions.Confidence.notapplicable,
+                                    error={"details": "no registration date"}
                                 )
                                 break
                             age_days = (now - reg_date).days
@@ -74,6 +76,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "within 7 days", "score_add": 2},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
                                 detections["score"] += 2
@@ -85,6 +88,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "within 30 days", "score_add": 1},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
                                 detections["score"] += 1
@@ -96,6 +100,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "older than 30 days", "score_add": 0},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
         except Exception as e:
@@ -106,7 +111,8 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": str(e)}
+                                    confidence=definitions.Confidence.notapplicable,
+                                    error={"details": str(e)}
                                 )
         
         # entropy detection
@@ -122,6 +128,7 @@ def check_heuristic(url: str, is_ip = False):
                                             source="entropy", 
                                             threat_type=None,
                                             attributes={"detail": "entropy >= 4", "score_add": 2},
+                                            confidence=definitions.Confidence.low,
                                             error=None
                                         )
                     detections["score"] += 2
@@ -133,6 +140,7 @@ def check_heuristic(url: str, is_ip = False):
                                             source="entropy", 
                                             threat_type=None,
                                             attributes={"detail": "4 > entropy >= 3.5", "score_add": 1},
+                                            confidence=definitions.Confidence.low,
                                             error=None
                                         )
                     detections["score"] += 1
@@ -144,6 +152,7 @@ def check_heuristic(url: str, is_ip = False):
                                             source="entropy", 
                                             threat_type=None,
                                             attributes={"detail": "3.5 > entropy", "score_add": 0},
+                                            confidence=definitions.Confidence.low,
                                             error=None
                                         )
             else:
@@ -154,6 +163,7 @@ def check_heuristic(url: str, is_ip = False):
                                             source="entropy", 
                                             threat_type=None,
                                             attributes={"detail": "too short", "score_add": 0},
+                                            confidence=definitions.Confidence.low,
                                             error=None
                                         )
         except Exception as e:
@@ -164,6 +174,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="entropy", 
                                     threat_type=None,
                                     attributes={"detail": str(e)},
+                                    confidence=definitions.Confidence.notapplicable,
                                     error=None
                                 )
         # length check
@@ -175,6 +186,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="domain_length", 
                                     threat_type=None,
                                     attributes={"detail": "length of domain >= 20", "score_add": 2},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
             detections["score"]+=2
@@ -186,6 +198,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="domain_length", 
                                     threat_type=None,
                                     attributes={"detail": "length of domain >= 12 and ent >= 3.8", "score_add": 1},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
             detections["score"]+=1
@@ -197,6 +210,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="domain_length", 
                                     threat_type=None,
                                     attributes={"detail": "12 > domain length", "score_add": 0},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
         return detections
@@ -231,7 +245,8 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net",
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": "no registration date"}
+                                    confidence=definitions.Confidence.notapplicable,
+                                    error={"details": "no registration date"}
                                 )
                                 break  
                             age_days = (now - reg_date).days
@@ -243,6 +258,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "within 7 days", "score_add": 2},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
                                 detections["score"] += 2
@@ -254,6 +270,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "within 30 days", "score_add": 1},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
                                 detections["score"] += 1
@@ -265,6 +282,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "older than 30 days", "score_add": 0},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
             except Exception as e:
@@ -275,7 +293,8 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": str(e)}
+                                    confidence=definitions.Confidence.notapplicable,
+                                    error={"details": str(e)}
                                 )
             # cidr check
             try:
@@ -289,6 +308,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "smaller than cidr 29", "score_add": 2},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
                             detections["score"] += 2
@@ -300,6 +320,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "smaller than cidr 24", "score_add": 1},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
                             detections["score"] += 1
@@ -311,6 +332,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes={"detail": "larger than cidr 24", "score_add": 0},
+                                    confidence=definitions.Confidence.low,
                                     error=None
                                 )
             except Exception as e:
@@ -321,7 +343,8 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": str(e)}
+                                    confidence=definitions.Confidence.notapplicable,
+                                    error={"details": str(e)}
                                 )
         return detections
     return detections

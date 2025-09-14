@@ -44,6 +44,8 @@ def refresh_certpl(): # just get the txt file
     return True # it has been updated, so return true just in case, more for logging than anything
 
 def check_url_certpl(url: str):
+    if not (CACHE_URL.exists() and METADATA_URL.exists()):
+        refresh_certpl()
     with open(CACHE_URL, "r") as f:
         non_comment_lines = (line for line in f if not line.startswith('#'))
         reader = csv.DictReader(non_comment_lines, fieldnames=CERTPL_HEADERS, delimiter="\t") # define the headers and feed lines into a tsv reader
@@ -56,6 +58,7 @@ def check_url_certpl(url: str):
                     source="certpl", 
                     threat_type=definitions.ThreatType.mixed,
                     attributes=None,
+                    confidence=definitions.Confidence.high,
                     error=None
                  )
         return definitions.UrlCheckResponse(
@@ -65,5 +68,6 @@ def check_url_certpl(url: str):
                     source="certpl", 
                     threat_type=None,
                     attributes=None,
+                    confidence=definitions.Confidence.high,
                     error=None
                  )

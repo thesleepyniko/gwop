@@ -29,6 +29,7 @@ def check_url_otx(url: str, api_key):
             source="otx",
             threat_type=None,
             attributes=None,
+            confidence=definitions.Confidence.notapplicable,
             error={"details": str(e)},
         )
 
@@ -44,6 +45,7 @@ def check_url_otx(url: str, api_key):
             source="otx",
             threat_type=definitions.ThreatType.unknown, 
             attributes={"pulse_count": pulse_count},
+            confidence=definitions.Confidence.high,
             error=None,
         )
     else:
@@ -54,5 +56,6 @@ def check_url_otx(url: str, api_key):
             source="otx",
             threat_type=None,
             attributes={"pulse_count": pulse_count},
+            confidence=definitions.Confidence.high,
             error=None,
         )
