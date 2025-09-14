@@ -82,7 +82,7 @@ class ClientResponse(BaseModel):
     cleared_by: List[str]
     errored_by: List[str]
     error: Optional[str]
-    heuristics: Dict[str, Union[int, UrlCheckResponse]]
+    heuristics: Dict[str, Optional[Union[int, UrlCheckResponse]]]
     evidence: List[UrlCheckResponse]
 
     @model_validator(mode="after")

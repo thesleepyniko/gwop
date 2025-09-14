@@ -15,6 +15,9 @@ def check_heuristic(url: str, is_ip = False):
     # length is just a simple length check
     domain_obj=tldextract.extract(url)
     domain = f"{domain_obj.domain}.{domain_obj.suffix}"
+    print(domain)
+    print(domain_obj)
+    print(is_ip)
     if not is_ip:
         try:
             # domain age detection
@@ -30,10 +33,21 @@ def check_heuristic(url: str, is_ip = False):
                     )
                 detections["score"] = 0
                 return detections
-            rdap_response = httpx.get(f"https://www.rdap.net/domain/{domain}")
+            try:
+                rdap_response = httpx.get(f"https://www.rdap.net/domain/{domain}", follow_redirects=True, timeout=5)
+            except httpx.RequestError as e:
+                return {
+                    "score": 0,
+                    "age": None,
+                    "entropy": None,
+                    "length": None,
+                    "cidr": None,
+                }
+            print("RDAP status:", rdap_response.status_code)
+            print("RDAP body:", rdap_response.text)
             if rdap_response.status_code == 200:
                 response=rdap_response.json()
-                domain_events = response.get("events", "")
+                domain_events = response.get("events", [])
                 if domain_events:
                     for event in domain_events:
                         if event.get("eventAction", "") == "registration":
@@ -92,7 +106,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": e}
+                                    error={"detail": str(e)}
                                 )
         
         # entropy detection
@@ -149,7 +163,7 @@ def check_heuristic(url: str, is_ip = False):
                                     via=definitions.Via.heuristic,
                                     source="entropy", 
                                     threat_type=None,
-                                    attributes={"detail": e},
+                                    attributes={"detail": str(e)},
                                     error=None
                                 )
         # length check
@@ -189,10 +203,19 @@ def check_heuristic(url: str, is_ip = False):
     elif is_ip:
         # date check
         ip = urlparse(url).hostname if urlparse(url).hostname else url
-        rdap_response = httpx.get(f"https://www.rdap.net/ip/{ip}")
+        try:
+            rdap_response = httpx.get(f"https://www.rdap.net/ip/{ip}", follow_redirects=True)
+        except httpx.RequestError as e:
+                return {
+                    "score": 0,
+                    "age": None,
+                    "entropy": None,
+                    "length": None,
+                    "cidr": None,
+                }
         if rdap_response.status_code == 200:
             response=rdap_response.json()
-            domain_events = response.get("events", "")
+            domain_events = response.get("events", [])
             try:
                 if domain_events:
                     for event in domain_events:
@@ -252,7 +275,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": e}
+                                    error={"detail": str(e)}
                                 )
             # cidr check
             try:
@@ -298,7 +321,7 @@ def check_heuristic(url: str, is_ip = False):
                                     source="rdap.net", 
                                     threat_type=None,
                                     attributes=None,
-                                    error={"detail": e}
+                                    error={"detail": str(e)}
                                 )
         return detections
     return detections

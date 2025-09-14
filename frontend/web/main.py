@@ -16,7 +16,7 @@ head_content = head(
         link({"rel": "preconnect", "href": "https://fonts.googleapis.com"}),
         link({"rel": "preconnect", "href": "https://fonts.gstatic.com", "crossorigin": ""}),
         link({"rel": "stylesheet","href": "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"}),
-        link({"rel": "stylsheet", "href": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"}),
+        link({"rel": "stylesheet", "href": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"}),
         html.title("gwop")
     )
 
@@ -137,10 +137,23 @@ def create_result_overview(result: ClientResponse, scanned_at):
     else:
         label = "unclassified"
     
-    if result.verdict:
-        verdict = verdict_map.get(result.verdict, Verdict.error)
+    if any(source.is_threat for source in result.evidence):
+        mapped = Verdict.malicious
+
     else:
-        verdict = verdict_map.get(Verdict.error)
+        score = result.heuristics.get("score")
+        if isinstance(score, int):
+            if score >= 5:
+                mapped = Verdict.malicious
+            elif score >= 3:
+                mapped = Verdict.suspicious
+            else:
+                mapped = Verdict.clean
+        else:
+            mapped = Verdict.clean
+
+    verdict = verdict_map.get(mapped, Verdict.error)
+
     class_name = "font['Inter', font-sans] text-[clamp(.6rem,.8vw,1rem)] text-1xl"
     return html.div(
         {"class": "rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-zinc-100 mt-6 mb-4"},
@@ -198,30 +211,20 @@ def create_heuristics_tag(result: ClientResponse):
     else:
         badge = clean_span
     heuristics_info = []
-    for key, value in enumerate(heuristics):
+    for key, value in heuristics.items():
         if key == "score":
             continue
-        match key:
-            case "age":
-                if value:
-                    heuristics_info.append(html.p(
-                        f"age threat score (how old is the url): {str(value.get("attributes", {}).get("score_add", 0))}/2"
-                    ))
-            case "entropy":
-                if value:
-                    heuristics_info.append(html.p(
-                        f"entropy threat score (how random was the url): {str(value.get("attributes", {}).get("score_add", 0))}/2"
-                    ))
-            case "length":
-                if value:
-                    heuristics_info.append(html.p(
-                        f"length threat score (how long was the url): {str(value.get("attributes", {}).get("score_add", 0)) or ""}/2"
-                    ))
-            case "cidr":
-                if value:
-                    heuristics_info.append(html.p(
-                        f"cidr threat score ((how small is the IP allocation, smaller = higher threat): {str(value.get("attributes", {}).get("score_add", 0))}/2"
-                    ))
+
+        if isinstance(value, UrlCheckResponse):
+            score_add = 0
+            if value.attributes and isinstance(value.attributes, dict):
+                score_add = value.attributes.get("score_add", 0)
+            detail = value.attributes.get("detail") if value.attributes else "n/a"
+
+            heuristics_info.append(html.p(f"{key} threat score: {score_add}/2 ({detail})"))
+
+        else:
+            heuristics_info.append(html.p(f"{key} threat score: not available"))
 
     return html.details(
         {"class": "rounded-xl border border-gray-400 p-4 shadow-md bg-zinc-700"},
@@ -312,6 +315,8 @@ def scan_link():
         set_text(event["target"]["value"])
     
     def send_link_to_server(event):
+        set_is_error(False)
+        set_error_message("")
         if not text.strip():
             set_error_message("URL cannot be empty!")
             set_is_error(True)
@@ -324,7 +329,8 @@ def scan_link():
             try:
                 response = httpx.post(
                     f"{SERVER_LINK}/check-url",
-                    json={"link": text.strip()})
+                    json={"link": text.strip()},
+                    timeout=20.0)
                 if response.status_code != 200:
                     set_is_error(True)
                     set_error_message(response.text)

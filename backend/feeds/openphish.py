@@ -25,7 +25,8 @@ def refresh_openphish(): # just get the txt file
             "last_updated_at": datetime.datetime.now().isoformat() # get the time now, then turn into isoforfmat so we can put it in json
         }
         json.dump(metadata_openphish, f)
-    return True # it has been updated, so return true just in case, more for logging than anything
+    return {line.strip() for line in request.text.splitlines() if line.strip()}
+
 
 def check_url_openphish(url: str, opset: set):
     try:
@@ -57,5 +58,5 @@ def check_url_openphish(url: str, opset: set):
                         source="openphish", 
                         threat_type=None,
                         attributes=None,
-                        error={"details": e}
+                        error={"details": str(e)}
                     )
