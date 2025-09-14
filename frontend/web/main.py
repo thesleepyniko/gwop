@@ -8,95 +8,7 @@ from reactpy_router import browser_router, route
 import httpx
 from pydantic import BaseModel
 import datetime
-
-from enum import Enum
-from pydantic import BaseModel, model_validator, HttpUrl
-from typing import Union, Optional, List, Dict, Any
-
-class Weights(str, Enum):
-    gsb = 1.0
-    AbuseCh = 0.9
-    SinkingYahts=0.9
-    PhishObserver=0.8
-    PhishReport=0.8
-    IpQuality=0.5
-    Walshy=0.5
-    VirusTotal=0.5
-
-# enums that we want to use for each response, just for easier returns persay
-class Verdict(str, Enum):
-    invalid = "invalid"
-    clean = "clean"
-    suspicious = "suspicious"
-    malicious = "malicious"
-    error = "error"
-
-class Result(str, Enum):
-    hit = "hit"
-    miss = "miss"
-    error = "error"
-
-class Via(str, Enum):
-    cache = "cache"
-    api = "api"
-    multi = "multi"
-    none = "none"
-
-class ThreatType(str, Enum):
-    phishing = "phishing"
-    malware = "malware"
-    other = "other"
-    mixed = "mixed"
-    unknown = "unclassified"
-
-class UrlCheckResponse(BaseModel):
-    source: str
-    result: Result
-    via: Via
-    is_threat: bool
-    threat_type: Optional[ThreatType]
-    attributes: Optional[Dict[str, Any]]
-    error: Optional[dict]
-    @model_validator(mode="after")
-    def enforce_consistency(self) -> "UrlCheckResponse":
-        if self.result == Result.error and self.error is None: # if there are no error details we need to make sure there are for logging
-            raise ValueError("Response with result=error must include details of error!")
-        
-        if self.result == Result.miss: # not a threat so we unset threat_type and set is_threat to false
-            self.is_threat = False
-            self.threat_type = None
-        
-        if self.is_threat is False: # if threat type was set to False or None but self.result not Result.miss, we unset threat_type
-            self.result = Result.miss
-            self.threat_type = None
-        
-        if self.is_threat and self.threat_type is None: # if there is a threat but we do not know the type, then set it to ThreatType.unknown
-            self.threat_type = ThreatType.unknown
-        
-        return self
-
-class ClientResponse(BaseModel):
-    verdict: Verdict
-    is_threat: bool
-    threat_type: Optional[ThreatType]
-    confirmed_via: Via
-    # the following three are to allow the front page to figure out what to display for each provider
-    flagged_by: List[str]
-    cleared_by: List[str]
-    errored_by: List[str]
-    error: Optional[str]
-    evidence: List[UrlCheckResponse]
-
-    @model_validator(mode="after")
-    def enforce_threat_consistency(self) -> "ClientResponse":
-        if self.verdict in {Verdict.malicious, Verdict.suspicious}: # if it is malicious or suspcious, mark as threat
-            self.is_threat = True
-
-        elif self.verdict in {Verdict.clean}: # otherwise we just mark it as not a threat
-            self.is_threat = False
-            self.threat_type = None
-
-        return self
+from definitions import ClientResponse, ThreatType, Via, Verdict, UrlCheckResponse, Result
 
 head_content = head(
         meta({"charset": "UTF-8"}),
@@ -198,7 +110,11 @@ def create_evidence_list(resp: ClientResponse):
     items=[]
     for i in resp.evidence:
         items.append(create_individual_tag(i))
-    return html.div({"class": "rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-white"}, *items)
+    items.append(create_heuristics_tag(resp))
+    return html.div(
+        {"class": "rounded-xl border border-gray-400 p-6 shadow-md bg-zinc-800 text-white"}, 
+        
+        *items)
 
 def create_result_overview(result: ClientResponse, scanned_at):
     threat_type_labels = {
@@ -247,7 +163,89 @@ def create_result_overview(result: ClientResponse, scanned_at):
         html.p(
             {"class": class_name},
             f"encountered {len(result.errored_by)} errors while scanning"
-        )       
+        ),
+        html.p(
+            {"class": class_name},
+            f"our heuristics ranked this a {result.heuristics.get("score")}/{6 if not result.heuristics.get("cidr", None) else 4}"
+        )      
+    )
+
+def create_heuristics_tag(result: ClientResponse):
+    via_map = {
+        Via.cache: "local cache",
+        Via.api:   "api",
+        Via.multi: "combined",
+        Via.none:  "n/a",
+    }
+    heuristics = result.heuristics
+
+    error_span=span(
+        {"class": "px-2 py-1 text-xs rounded bg-orange-100 text-orange-700"},
+        "Error"
+    )
+    clean_span=span(
+        {"class": "px-2 py-1 text-xs rounded bg-green-100 text-green-700"},
+        "Clean"
+    )
+    flag_span=span(
+        {"class": "px-2 py-1 text-xs rounded bg-red-100 text-red-700"},
+        "Flagged"
+    )
+    if result.error:
+        badge = error_span
+    elif result.heuristics_is_threat:
+        badge = flag_span
+    else:
+        badge = clean_span
+    heuristics_info = []
+    for key, value in enumerate(heuristics):
+        if key == "score":
+            continue
+        match key:
+            case "age":
+                if value:
+                    heuristics_info.append(html.p(
+                        f"age threat score (how old is the url): {str(value.get("attributes", {}).get("score_add", 0))}/2"
+                    ))
+            case "entropy":
+                if value:
+                    heuristics_info.append(html.p(
+                        f"entropy threat score (how random was the url): {str(value.get("attributes", {}).get("score_add", 0))}/2"
+                    ))
+            case "length":
+                if value:
+                    heuristics_info.append(html.p(
+                        f"length threat score (how long was the url): {str(value.get("attributes", {}).get("score_add", 0)) or ""}/2"
+                    ))
+            case "cidr":
+                if value:
+                    heuristics_info.append(html.p(
+                        f"cidr threat score ((how small is the IP allocation, smaller = higher threat): {str(value.get("attributes", {}).get("score_add", 0))}/2"
+                    ))
+
+    return html.details(
+        {"class": "rounded-xl border border-gray-400 p-4 shadow-md bg-zinc-700"},
+        html.summary(
+            {"class": "cursor-pointer font-bold text-lg flex items-center gap-2"},
+            html.span("heuristics"),
+            badge,
+        ),
+        html.div(
+            {"class": "mt-2 space-y-1 text-sm"},
+            html.p(
+                "flagged: " + ("yes" if badge == flag_span else "no")
+            ),
+            html.p(
+                "recieved score of " + str(heuristics.get("score"))
+            ),
+            html.p(
+                f"confirmed via: mixed"
+            ),
+            html.p(
+                f"error: {result.error}" if result.error else ""
+            ),
+            *heuristics_info
+        )
     )
 
 def create_individual_tag(result: UrlCheckResponse):
@@ -277,7 +275,6 @@ def create_individual_tag(result: UrlCheckResponse):
         badge = flag_span
     else:
         badge = clean_span
-
     return html.details(
         {"class": "rounded-xl border border-gray-400 p-4 shadow-md bg-zinc-700"},
         html.summary(
