@@ -321,7 +321,7 @@ def create_individual_tag(result: UrlCheckResponse):
 @component
 def scan_link():
     
-    SERVER_LINK = "http://127.0.0.1:8000"
+    SERVER_LINK = "https://api.gwop.nikoo.dev"
     text, set_text = use_state("")
     error, set_error_message = use_state("")
     is_error, set_is_error = use_state(False)
