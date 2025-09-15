@@ -52,7 +52,7 @@ async def run_gwop(url: str, fmt: str, output):
                 exit_and_help("Non 200 response code, try again later.")
             data = response.json()
             result = ClientResponse.model_validate(data)
-            if format == "text":
+            if fmt == "text":
                 if result.threat_type:
                     label = threat_type_labels.get(result.threat_type, ThreatType.unknown)
                 else:

@@ -1,6 +1,8 @@
 [project]
 name = "gwop"
-version = "1.0.0"
+version = "1.0.1"
+readme = "README.md"
+license = {text = "MIT"}
 description = "gwop CLI"
 requires-python = ">=3.11"
 dependencies = [
