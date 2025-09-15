@@ -2,3 +2,6 @@ reactpy[fastapi]
 reactpy-router
 httpx
 pydantic
+yaml
+json
+base64
